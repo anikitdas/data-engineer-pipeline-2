@@ -6,17 +6,23 @@ try:
 
     df = pd.read_csv(input_path)
 
-    # Convert timestamp to date
+    # Deduplication
+    df = df.drop_duplicates(subset=["transaction_id"])
+
+    # Filter invalid data
+    df = df[df["amount"] > 0]
+
+    # Extract date
     df["transaction_date"] = pd.to_datetime(df["timestamp"]).dt.date
 
-    # Group by customer and date
+    # Aggregation
     result = df.groupby(["customer_id", "transaction_date"])["amount"].sum().reset_index()
-
     result.rename(columns={"amount": "daily_total"}, inplace=True)
 
+    # Save output
     result.to_csv(output_path, index=False)
 
-    print("Spark ETL Completed")
+    print("ETL Transformation Completed")
 
 except Exception as e:
     print("ERROR:", e)
