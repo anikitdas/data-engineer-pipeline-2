@@ -1,0 +1,64 @@
+services:
+
+  spark:
+    image: apache/spark:3.5.0
+    container_name: spark
+    volumes:
+      - ./data:/data
+      - ./scripts:/scripts
+    command: tail -f /dev/null
+    ports:
+      - "4040:4040"
+
+  scylla:
+    image: scylladb/scylla
+    container_name: scylla
+    ports:
+      - "9042:9042"
+
+  airflow-init:
+    image: apache/airflow:2.9.1
+    container_name: airflow-init
+    entrypoint: /bin/bash
+    command: -c "airflow db init"
+    environment:
+      - AIRFLOW__CORE__EXECUTOR=SequentialExecutor
+      - _PIP_ADDITIONAL_REQUIREMENTS=pandas faker pyarrow cassandra-driver
+    volumes:
+      - ./airflow:/opt/airflow
+      - ./dags:/opt/airflow/dags
+      - ./data:/data
+      - ./scripts:/scripts
+
+  airflow-webserver:
+    image: apache/airflow:2.9.1
+    container_name: airflow-webserver
+    depends_on:
+      - airflow-init
+    environment:
+      - AIRFLOW__CORE__EXECUTOR=SequentialExecutor
+      - AIRFLOW__WEBSERVER__WORKERS=1
+      - _PIP_ADDITIONAL_REQUIREMENTS=pandas faker pyarrow cassandra-driver
+    volumes:
+      - ./airflow:/opt/airflow
+      - ./dags:/opt/airflow/dags
+      - ./data:/data
+      - ./scripts:/scripts
+    ports:
+      - "8080:8080"
+    command: bash -c "rm -f /opt/airflow/airflow-webserver.pid && airflow webserver --workers 1"
+
+  airflow-scheduler:
+    image: apache/airflow:2.9.1
+    container_name: airflow-scheduler
+    depends_on:
+      - airflow-webserver
+    environment:
+      - AIRFLOW__CORE__EXECUTOR=SequentialExecutor
+      - _PIP_ADDITIONAL_REQUIREMENTS=pandas faker pyarrow cassandra-driver
+    volumes:
+      - ./airflow:/opt/airflow
+      - ./dags:/opt/airflow/dags
+      - ./data:/data
+      - ./scripts:/scripts
+    command: scheduler
